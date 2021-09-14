@@ -51,9 +51,19 @@ app.use(async (ctx) => {
       sourceMaps: true,
     })
     ctx.type = 'application/javascript'
-    ctx.body = result.code;
+    ctx.body = rewriteImport(result.code);
   }
 })
+
+function rewriteImport (content) {
+  return content.replace(/ from ['"](\S.*\S)['"]/g, (s1, s2) => {
+    if (s2.startsWith('.') || s2.startsWith('./') || s2.startsWith('../')) {
+      return s1
+    } else {
+      return ` from '/@modules/${s2}'`
+    }
+  })
+};
 
 app.listen(3000, () => {
   console.log('start up!')
