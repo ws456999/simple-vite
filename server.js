@@ -58,6 +58,16 @@ app.use(async (ctx) => {
 function rewriteImport (content) {
   return content.replace(/ from ['"](\S.*\S)['"]/g, (s1, s2) => {
     if (s2.startsWith('.') || s2.startsWith('./') || s2.startsWith('../')) {
+      if (!s2.endsWith('.ts') && !s2.endsWith('.tsx' )) {
+        let list = ['.ts', '.tsx'];
+        list.forEach((v) => {
+          const isExist = fs.existsSync(__dirname, s2 + v);
+          isExist && (end = v);
+        })
+        if (end) {
+          return s1.slice(0, -1) + end + s1.slice(-1)
+        }
+      }
       return s1
     } else {
       return ` from '/@modules/${s2}'`
