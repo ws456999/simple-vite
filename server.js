@@ -8,7 +8,6 @@ const { esModuleBuild } = require('./es-build')
 app.use(async (ctx) => {
   const { url } = ctx.request
 
-
   if (url === '/') {
     const body = fs.readFileSync('./index.html')
     ctx.type = 'text/html'
@@ -41,32 +40,32 @@ app.use(async (ctx) => {
       generatorOpts: {
         decoratorsBeforeExport: true,
       },
-      plugins: [
-        require('@babel/plugin-transform-react-jsx'),
-      ],
+      plugins: [require('@babel/plugin-transform-react-jsx')],
       sourceMaps: true,
     })
     ctx.type = 'application/javascript'
-    ctx.body = rewriteImport(result.code);
+    ctx.body = rewriteImport(result.code)
   } else if (url.startsWith('/@modules/')) {
-    const modulesName = url.replace('/@modules/', '');
+    const modulesName = url.replace('/@modules/', '')
     esModuleBuild([modulesName])
-      const isJs = modulesName.indexOf('.js') > -1
-      console.log(`${__dirname}/.gvite/${modulesName}${isJs ? '' : '.js'}`)
-      const body = fs.readFileSync(`${__dirname}/.gvite/${modulesName}${isJs ? '' : '.js'}`, 'utf-8');
-      ctx.type = 'application/javascript'
-      ctx.body = body;
+    const isJs = modulesName.indexOf('.js') > -1
+    const body = fs.readFileSync(
+      `${__dirname}/.gvite/${modulesName}${isJs ? '' : '.js'}`,
+      'utf-8'
+    )
+    ctx.type = 'application/javascript'
+    ctx.body = body
   }
 })
 
-function rewriteImport (content) {
+function rewriteImport(content) {
   return content.replace(/ from ['"](\S.*\S)['"]/g, (s1, s2) => {
     if (s2.startsWith('.') || s2.startsWith('./') || s2.startsWith('../')) {
-      if (!s2.endsWith('.ts') && !s2.endsWith('.tsx' )) {
-        let list = ['.ts', '.tsx'];
+      if (!s2.endsWith('.ts') && !s2.endsWith('.tsx')) {
+        let list = ['.ts', '.tsx']
         list.forEach((v) => {
-          const isExist = fs.existsSync(__dirname, s2 + v);
-          isExist && (end = v);
+          const isExist = fs.existsSync(__dirname, s2 + v)
+          isExist && (end = v)
         })
         if (end) {
           return s1.slice(0, -1) + end + s1.slice(-1)
@@ -77,7 +76,7 @@ function rewriteImport (content) {
       return ` from '/@modules/${s2}'`
     }
   })
-};
+}
 
 app.listen(3000, () => {
   console.log('start up!')
