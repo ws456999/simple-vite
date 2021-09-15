@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const app = new Koa()
 const { transformSync } = require('@babel/core')
-const { esModuleBuild } = require('./es-build')
+const { esModuleBuild, preBuild } = require('./es-build')
 
 app.use(async (ctx) => {
   const { url } = ctx.request
@@ -47,7 +47,6 @@ app.use(async (ctx) => {
     ctx.body = rewriteImport(result.code)
   } else if (url.startsWith('/@modules/')) {
     const modulesName = url.replace('/@modules/', '')
-    esModuleBuild([modulesName])
     const isJs = modulesName.indexOf('.js') > -1
     const body = fs.readFileSync(
       `${__dirname}/.gvite/${modulesName}${isJs ? '' : '.js'}`,
@@ -78,6 +77,8 @@ function rewriteImport(content) {
   })
 }
 
-app.listen(3000, () => {
-  console.log('start up!')
+preBuild().then(v => {
+  app.listen(3000, () => {
+    console.log('start up!')
+  })
 })

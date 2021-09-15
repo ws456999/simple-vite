@@ -1,3 +1,17 @@
+const list = {}
+
+let makeAllPackagesExternalPlugin = {
+  name: 'make-all-packages-external',
+  setup(build) {
+    let filter = /^[^.\/]|^\.[^.\/]|^\.\.[^\/]/ // Must not start with "/" or "./" or "../"
+    build.onResolve({ filter: filter }, (args) => {
+      list[args.path] = 1
+      return { path: args.path, external: true }
+    })
+  },
+}
+
+
 const cjs_to_esm_plugin = {
   name: 'cjs-to-esm',
   setup(build) {
@@ -37,6 +51,29 @@ function esModuleBuild(path) {
   })
 }
 
+function preBuild() {
+  return require('esbuild')
+    .build({
+      target: 'esnext',
+      format: 'esm',
+      logLevel: 'verbose',
+      bundle: true,
+      entryPoints: ['./src/main.tsx'],
+      loader: { '.svg': 'text', '.css': 'text' },
+      // outdir: 'temp',
+      // define: {
+      //   'process.env.NODE_ENV': JSON.stringify('development'),
+      // },
+      plugins: [
+        makeAllPackagesExternalPlugin,
+      ],
+    })
+    .then((v) => {
+      return esModuleBuild(Object.keys(list))
+    })
+}
+
 module.exports = {
   esModuleBuild: esModuleBuild,
+  preBuild: preBuild,
 }
