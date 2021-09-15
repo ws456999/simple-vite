@@ -67,13 +67,23 @@ app.use(async (ctx) => {
 
     ctx.type = 'application/javascript'
     ctx.body = content
+  } else if (url.indexOf('.svg') > -1) {
+    if (url.endsWith('.svg')) {
+      ctx.type = 'image/svg+xml'
+      ctx.body = fs.createReadStream(path.join(url.split('?')[0]));
+    } else {
+      ctx.type = 'application/javascript'
+      ctx.body = `export default "${path.join(__dirname, url).split("?")[0]}"`
+    }
   }
 })
 
 function rewriteImport(content) {
   return content.replace(/ from ['"](\S.*\S)['"]/g, (s1, s2) => {
     if (s2.startsWith('.') || s2.startsWith('./') || s2.startsWith('../')) {
-      if (!s2.endsWith('.ts') && !s2.endsWith('.tsx')) {
+      if (s2.endsWith('.svg')) {
+        return s1.slice(0, -1) + '?import' + s1.slice(-1)
+      } else if (!s2.endsWith('.ts') && !s2.endsWith('.tsx')) {
         let list = ['.ts', '.tsx']
         list.forEach((v) => {
           const isExist = fs.existsSync(__dirname, s2 + v)
