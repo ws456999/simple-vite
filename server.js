@@ -3,6 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const app = new Koa()
 const { transformSync } = require('@babel/core')
+const { esModuleBuild } = require('./es-build')
 
 app.use(async (ctx) => {
   const { url } = ctx.request
@@ -20,9 +21,6 @@ app.use(async (ctx) => {
     const parserPlugins = [
       'jsx',
       'importMeta',
-      // since the plugin now applies before esbuild transforms the code,
-      // we need to enable some stage 3 syntax since they are supported in
-      // TS and some environments already.
       'topLevelAwait',
       'classProperties',
       'classPrivateProperties',
@@ -45,13 +43,19 @@ app.use(async (ctx) => {
       },
       plugins: [
         require('@babel/plugin-transform-react-jsx'),
-        // require('@babel/plugin-transform-react-jsx-self'),
-        // require('@babel/plugin-transform-react-jsx-source'),
       ],
       sourceMaps: true,
     })
     ctx.type = 'application/javascript'
     ctx.body = rewriteImport(result.code);
+  } else if (url.startsWith('/@modules/')) {
+    const modulesName = url.replace('/@modules/', '');
+    esModuleBuild([modulesName])
+      const isJs = modulesName.indexOf('.js') > -1
+      console.log(`${__dirname}/.gvite/${modulesName}${isJs ? '' : '.js'}`)
+      const body = fs.readFileSync(`${__dirname}/.gvite/${modulesName}${isJs ? '' : '.js'}`, 'utf-8');
+      ctx.type = 'application/javascript'
+      ctx.body = body;
   }
 })
 
