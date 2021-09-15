@@ -54,6 +54,19 @@ app.use(async (ctx) => {
     )
     ctx.type = 'application/javascript'
     ctx.body = body
+  } else if (url.endsWith('.css')) {
+    const p = path.join(__dirname, url)
+    const file = fs.readFileSync(p, 'utf-8')
+    const content = `
+      const css = \`${file}\`
+      const link = document.createElement('style')
+      link.setAttribute('type', 'text/css')
+      link.innerHTML = css
+      document.head.appendChild(link)
+    `
+
+    ctx.type = 'application/javascript'
+    ctx.body = content
   }
 })
 
