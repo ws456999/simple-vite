@@ -1,107 +1,37 @@
 const Koa = require('koa')
-const fs = require('fs')
-const path = require('path')
-const app = new Koa()
-const { transformSync } = require('@babel/core')
-const { esModuleBuild, preBuild } = require('./es-build')
+const htmlRewritePlugin = require('./plugins/htmlResolvePlugin')
+const serveStaticPlugin = require('./plugins/serveStaticPlugin')
+const tsRewritePlugin = require('./plugins/tsResolvePlugin')
+const rewriteModulePlugin = require('./plugins/rewriteModulePlugin')
+const moduleResolvePlugin = require('./plugins/moduleResolvePlugin')
+const cssRewritePlugin = require('./plugins/cssRewritePlugin')
+const svgResolvePlugin = require('./plugins/svgResolvePlugin')
+const { preBuild } = require('./es-build');
 
-app.use(async (ctx) => {
-  const { url } = ctx.request
-
-  if (url === '/') {
-    const body = fs.readFileSync('./index.html')
-    ctx.type = 'text/html'
-    ctx.body = body
-  } else if (url.endsWith('.tsx') || url.endsWith('.ts')) {
-    const p = path.join(__dirname, url)
-
-    const code = fs.readFileSync(p, 'utf8')
-
-    const parserPlugins = [
-      'jsx',
-      'importMeta',
-      'topLevelAwait',
-      'classProperties',
-      'classPrivateProperties',
-      'classPrivateMethods',
-      'typescript',
-      'decorators-legacy',
-    ]
-
-    const result = transformSync(code, {
-      babelrc: false,
-      configFile: false,
-      // filename: id,
-      parserOpts: {
-        sourceType: 'module',
-        allowAwaitOutsideFunction: true,
-        plugins: parserPlugins,
-      },
-      generatorOpts: {
-        decoratorsBeforeExport: true,
-      },
-      plugins: [require('@babel/plugin-transform-react-jsx')],
-      sourceMaps: true,
-    })
-    ctx.type = 'application/javascript'
-    ctx.body = rewriteImport(result.code)
-  } else if (url.startsWith('/@modules/')) {
-    const modulesName = url.replace('/@modules/', '')
-    const isJs = modulesName.indexOf('.js') > -1
-    const body = fs.readFileSync(
-      `${__dirname}/.gvite/${modulesName}${isJs ? '' : '.js'}`,
-      'utf-8'
-    )
-    ctx.type = 'application/javascript'
-    ctx.body = body
-  } else if (url.endsWith('.css')) {
-    const p = path.join(__dirname, url)
-    const file = fs.readFileSync(p, 'utf-8')
-    const content = `
-      const css = \`${file}\`
-      const link = document.createElement('style')
-      link.setAttribute('type', 'text/css')
-      link.innerHTML = css
-      document.head.appendChild(link)
-    `
-
-    ctx.type = 'application/javascript'
-    ctx.body = content
-  } else if (url.indexOf('.svg') > -1) {
-    if (url.endsWith('.svg')) {
-      ctx.type = 'image/svg+xml'
-      ctx.body = fs.createReadStream(path.join(url.split('?')[0]));
-    } else {
-      ctx.type = 'application/javascript'
-      ctx.body = `export default "${path.join(__dirname, url).split("?")[0]}"`
-    }
+function createServer() {
+  const app = new Koa()
+  const root = process.cwd()
+  const context = {
+    app,
+    root,
   }
-})
 
-function rewriteImport(content) {
-  return content.replace(/ from ['"](\S.*\S)['"]/g, (s1, s2) => {
-    if (s2.startsWith('.') || s2.startsWith('./') || s2.startsWith('../')) {
-      if (s2.endsWith('.svg')) {
-        return s1.slice(0, -1) + '?import' + s1.slice(-1)
-      } else if (!s2.endsWith('.ts') && !s2.endsWith('.tsx')) {
-        let list = ['.ts', '.tsx']
-        list.forEach((v) => {
-          const isExist = fs.existsSync(__dirname, s2 + v)
-          isExist && (end = v)
-        })
-        if (end) {
-          return s1.slice(0, -1) + end + s1.slice(-1)
-        }
-      }
-      return s1
-    } else {
-      return ` from '/@modules/${s2}'`
-    }
-  })
+  const resolvePlugins = [
+    // 重写html，插入需要的代码
+    htmlRewritePlugin,
+    cssRewritePlugin,
+    svgResolvePlugin,
+    rewriteModulePlugin,
+    tsRewritePlugin,
+    moduleResolvePlugin,
+    serveStaticPlugin,
+  ]
+  resolvePlugins.forEach((f) => f(context))
+  return app
 }
 
-preBuild().then(v => {
-  app.listen(3000, () => {
+preBuild().then((v) => {
+  createServer().listen(3000, () => {
     console.log('start up!')
   })
 })
